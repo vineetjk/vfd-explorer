@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>VFD Explorer</title>
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+  <script>
+    if (typeof mqtt === 'undefined') {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.3.4/mqtt.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAFAF8;
+      --bg-card: #FFFFFF;
+      --bg-input: #F3F3F0;
+      --border: #E8E8E4;
+      --border-focus: #C8C8C2;
+      --text: #1A1A18;
+      --text-2: #6B6B66;
+      --text-3: #A0A09A;
+      --accent: #2563EB;
+      --accent-light: #EFF4FF;
+      --green: #16A34A;
+      --green-light: #ECFDF3;
+      --red: #DC2626;
+      --red-light: #FEF2F2;
+      --amber: #D97706;
+      --cyan: #0891B2;
+      --mono: 'DM Mono', monospace;
+      --sans: 'Manrope', sans-serif;
+      --r: 12px;
+      --rs: 8px;
+      --sh: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      display: none;
+      min-height: 100dvh;
+    }
+
+    .page.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ══ SETUP ══ */
+    .setup-page {
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .setup-wrap {
+      width: 100%;
+      max-width: 420px;
+      animation: fadeIn .5s ease;
+    }
+
+    .setup-brand {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .s-logo {
+      width: 52px;
+      height: 52px;
+      background: var(--text);
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--bg);
+      margin-bottom: 18px;
+    }
+
+    .s-title {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      margin-bottom: 4px;
+    }
+
+    .s-sub {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.5;
+    }
+
+    .setup-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 22px;
+      box-shadow: var(--sh);
+    }
+
+    .fld {
+      margin-bottom: 16px;
+    }
+
+    .fld:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .fld-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 5px;
+      letter-spacing: .2px;
+    }
+
+    .fld-input {
+      width: 100%;
+      padding: 10px 13px;
+      background: var(--bg-input);
+      border: 1.5px solid transparent;
+      border-radius: var(--rs);
+      font-family: var(--mono);
+      font-size: 13.5px;
+      color: var(--text);
+      outline: none;
+      transition: all .2s;
+    }
+
+    .fld-input:focus {
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    .fld-input::placeholder {
+      color: var(--text-3);
+    }
+
+    .fld-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .fld-hint {
+      font-size: 10.5px;
+      color: var(--text-3);
+      margin-top: 3px;
+      font-family: var(--mono);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 18px 0;
+    }
+
+    .s-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--rs);
+      font-family: var(--sans);
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      margin-top: 22px;
+      letter-spacing: -.2px;
+    }
+
+    .s-btn:hover {
+      opacity: .85;
+    }
+
+    .s-btn:active {
+      transform: scale(.98);
+    }
+
+    .s-footer {
+      text-align: center;
+      margin-top: 14px;
+    }
+
+    .s-reset {
+      font-size: 12.5px;
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      border: none;
+      background: none;
+      font-family: var(--sans);
+    }
+
+    .s-reset:hover {
+      text-decoration: underline;
+    }
+
+    /* ══ DASHBOARD ══ */
+    .dash-page {
+      padding: 0;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .nav-l {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .n-logo {
+      width: 30px;
+      height: 30px;
+      background: var(--text);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--bg);
+    }
+
+    .n-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.3px;
+    }
+
+    .nav-r {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .n-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      transition: all .2s;
+      font-family: var(--sans);
+      color: var(--text-2);
+    }
+
+    .n-pill:hover {
+      border-color: var(--border-focus);
+    }
+
+    .n-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      transition: all .3s;
+    }
+
+    .n-dot.on {
+      background: var(--green);
+      box-shadow: 0 0 6px rgba(22, 163, 74, .4);
+    }
+
+    .n-gear {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 15px;
+      color: var(--text-2);
+      transition: all .2s;
+    }
+
+    .n-gear:hover {
+      border-color: var(--border-focus);
+      color: var(--text);
+    }
+
+    .dash-body {
+      padding: 14px 16px 24px;
+      max-width: 540px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Status */
+    .st-banner {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 14px 16px;
+      border-radius: var(--r);
+      margin-bottom: 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      transition: all .3s;
+    }
+
+    .st-banner.run {
+      background: var(--green-light);
+      border-color: #BBF7D0;
+    }
+
+    .st-banner.stop {
+      background: var(--red-light);
+      border-color: #FECACA;
+    }
+
+    .st-ring {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      transition: all .3s;
+    }
+
+    .st-banner.run .st-ring {
+      border-color: var(--green);
+    }
+
+    .st-banner.stop .st-ring {
+      border-color: var(--red);
+    }
+
+    .st-lbl {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-3);
+      letter-spacing: .4px;
+      text-transform: uppercase;
+    }
+
+    .st-val {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -.3px;
+      margin-top: 1px;
+    }
+
+    .st-banner.run .st-val {
+      color: var(--green);
+    }
+
+    .st-banner.stop .st-val {
+      color: var(--red);
+    }
+
+    .st-banner:not(.run):not(.stop) .st-val {
+      color: var(--text-3);
+    }
+
+    .st-ts {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-3);
+      margin-top: 1px;
+    }
+
+    /* Metrics */
+    .m-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .m-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      box-shadow: var(--sh);
+    }
+
+    .m-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-3);
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .m-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .m-num {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -1.2px;
+      line-height: 1;
+    }
+
+    .m-unit {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 3px;
+    }
+
+    .mf .m-dot {
+      background: var(--accent);
+    }
+
+    .mf .m-num {
+      color: var(--accent);
+    }
+
+    .mv .m-dot {
+      background: var(--amber);
+    }
+
+    .mv .m-num {
+      color: var(--amber);
+    }
+
+    .mr .m-dot {
+      background: var(--cyan);
+    }
+
+    .mr .m-num {
+      color: var(--cyan);
+    }
+
+    .mc .m-dot {
+      background: var(--green);
+    }
+
+    .mc .m-num {
+      color: var(--green);
+    }
+
+    /* Chart */
+    .ch-sec {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--sh);
+    }
+
+    .ch-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .ch-title {
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .ch-leg {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    .lg {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-3);
+      cursor: pointer;
+      transition: opacity .2s;
+      user-select: none;
+    }
+
+    .lg.off {
+      opacity: .25;
+    }
+
+    .lg-d {
+      width: 5px;
+      height: 5px;
+      border-radius: 2px;
+    }
+
+    canvas#chart {
+      width: 100%;
+      height: 140px;
+      display: block;
+    }
+
+    /* Controls */
+    .ct-sec {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--sh);
+    }
+
+    .ct-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .ct-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .ct-in {
+      flex: 1;
+      padding: 9px 12px;
+      background: var(--bg-input);
+      border: 1.5px solid transparent;
+      border-radius: var(--rs);
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+      outline: none;
+      text-align: center;
+      transition: all .2s;
+    }
+
+    .ct-in:focus {
+      border-color: var(--accent);
+      background: var(--bg-card);
+      box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    .ct-hz {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-3);
+      flex-shrink: 0;
+    }
+
+    .ct-sl {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: var(--bg-input);
+      outline: none;
+      margin-bottom: 4px;
+    }
+
+    .ct-sl::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+    }
+
+    .ct-slab {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--text-3);
+      margin-bottom: 16px;
+    }
+
+    .ct-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .ct-b {
+      padding: 12px 6px;
+      border-radius: var(--rs);
+      font-family: var(--sans);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      letter-spacing: -.2px;
+    }
+
+    .ct-b:active {
+      transform: scale(.96);
+    }
+
+    .ct-b.se {
+      border: 1.5px solid var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .ct-b.se:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .ct-b.ru {
+      border: 1.5px solid var(--green);
+      color: var(--green);
+      background: var(--green-light);
+    }
+
+    .ct-b.ru:hover {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .ct-b.st {
+      border: 1.5px solid var(--red);
+      color: var(--red);
+      background: var(--red-light);
+    }
+
+    .ct-b.st:hover {
+      background: var(--red);
+      color: #fff;
+    }
+
+    /* Log */
+    .lo-sec {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      margin-bottom: 20px;
+      box-shadow: var(--sh);
+    }
+
+    .lo-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .lo-title {
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .lo-clr {
+      font-size: 11.5px;
+      color: var(--text-3);
+      cursor: pointer;
+      font-weight: 600;
+      font-family: var(--sans);
+      border: none;
+      background: none;
+    }
+
+    .lo-clr:hover {
+      color: var(--red);
+    }
+
+    .lo-box {
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      line-height: 1.9;
+      background: var(--bg-input);
+      border-radius: var(--rs);
+      padding: 8px 10px;
+    }
+
+    .lo-box::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .lo-box::-webkit-scrollbar-thumb {
+      background: var(--border-focus);
+      border-radius: 2px;
+    }
+
+    .le {
+      display: flex;
+      gap: 7px;
+    }
+
+    .le-t {
+      color: var(--text-3);
+      flex-shrink: 0;
+    }
+
+    .le-m {
+      word-break: break-all;
+    }
+
+    .le-m.pub {
+      color: var(--accent);
+    }
+
+    .le-m.sub {
+      color: var(--green);
+    }
+
+    .le-m.err {
+      color: var(--red);
+    }
+
+    .le-m.sys {
+      color: var(--amber);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      padding: 9px 18px;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: var(--sans);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .1);
+      z-index: 999;
+      opacity: 0;
+      transition: all .3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.ok {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .toast.fail {
+      background: var(--red);
+      color: #fff;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .dash-body>* {
+      animation: fadeIn .35s ease both;
+    }
+
+    .dash-body> :nth-child(2) {
+      animation-delay: .04s;
+    }
+
+    .dash-body> :nth-child(3) {
+      animation-delay: .08s;
+    }
+
+    .dash-body> :nth-child(4) {
+      animation-delay: .12s;
+    }
+
+    .dash-body> :nth-child(5) {
+      animation-delay: .16s;
+    }
+
+    .vf {
+      animation: vf .25s ease;
+    }
+
+    @keyframes vf {
+      50% {
+        opacity: .35;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="toast" id="toast"></div>
+
+  <!-- ══ SETUP ══ -->
+  <div class="page setup-page active" id="pgSetup">
+    <div class="setup-wrap">
+      <div class="setup-brand">
+        <div class="s-logo">VFD</div>
+        <div class="s-title">VFD Explorer</div>
+        <div class="s-sub">Configure your MQTT broker to begin.</div>
+      </div>
+      <div class="setup-card">
+        <div class="fld">
+          <label class="fld-label">Broker Host</label>
+          <input class="fld-input" id="cHost" value="broker.emqx.io" placeholder="broker.emqx.io">
+        </div>
+        <div class="fld-row fld">
+          <div>
+            <label class="fld-label">WSS Port</label>
+            <input class="fld-input" id="cPort" type="number" value="8084" placeholder="8084">
+          </div>
+          <div>
+            <label class="fld-label">Path</label>
+            <input class="fld-input" id="cPath" value="/mqtt" placeholder="/mqtt">
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="fld">
+          <label class="fld-label">Subscribe Topic</label>
+          <input class="fld-input" id="cSub" value="delta/vfd" placeholder="delta/vfd">
+          <div class="fld-hint">Telemetry from drive → {f, s, v, r, a}</div>
+        </div>
+        <div class="fld">
+          <label class="fld-label">Publish Topic</label>
+          <input class="fld-input" id="cPub" value="delta/vfd/set" placeholder="delta/vfd/set">
+          <div class="fld-hint">Send frequency &amp; run/stop commands</div>
+        </div>
+        <div class="divider"></div>
+        <div class="fld">
+          <label class="fld-label">Client ID</label>
+          <input class="fld-input" id="cId" value="" placeholder="auto-generated">
+          <div class="fld-hint">Leave blank for auto-generated</div>
+        </div>
+        <button class="s-btn" onclick="launch()">Connect & Launch →</button>
+      </div>
+      <div class="s-footer">
+        <button class="s-reset" onclick="resetSetup()">Reset defaults</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div class="page dash-page" id="pgDash">
+    <div class="nav">
+      <div class="nav-l">
+        <div class="n-logo">VFD</div>
+        <div class="n-title">Explorer</div>
+      </div>
+      <div class="nav-r">
+        <button class="n-pill" onclick="togConn()">
+          <span class="n-dot" id="nDot"></span>
+          <span id="nConn">Offline</span>
+        </button>
+        <button class="n-gear" onclick="goSetup()" title="Settings">⚙</button>
+      </div>
+    </div>
+    <div class="dash-body">
+      <div class="st-banner" id="stB">
+        <div class="st-ring" id="stR">⏻</div>
+        <div>
+          <div class="st-lbl">Drive Status</div>
+          <div class="st-val" id="stV">Waiting…</div>
+          <div class="st-ts" id="stTs">No data yet</div>
+        </div>
+      </div>
+      <div class="m-grid">
+        <div class="m-card mf">
+          <div class="m-label"><span class="m-dot"></span>Frequency</div>
+          <div class="m-num" id="dF">—</div>
+          <div class="m-unit">Hz</div>
+        </div>
+        <div class="m-card mv">
+          <div class="m-label"><span class="m-dot"></span>Voltage</div>
+          <div class="m-num" id="dV">—</div>
+          <div class="m-unit">V</div>
+        </div>
+        <div class="m-card mr">
+          <div class="m-label"><span class="m-dot"></span>RPM</div>
+          <div class="m-num" id="dR">—</div>
+          <div class="m-unit">rev/min</div>
+        </div>
+        <div class="m-card mc">
+          <div class="m-label"><span class="m-dot"></span>Current</div>
+          <div class="m-num" id="dA">—</div>
+          <div class="m-unit">A</div>
+        </div>
+      </div>
+      <div class="ch-sec">
+        <div class="ch-top">
+          <div class="ch-title">Telemetry</div>
+          <div class="ch-leg">
+            <div class="lg" onclick="tS('freq')" id="lf"><span class="lg-d" style="background:var(--accent)"></span>Hz
+            </div>
+            <div class="lg" onclick="tS('volt')" id="lv"><span class="lg-d" style="background:var(--amber)"></span>V
+            </div>
+            <div class="lg" onclick="tS('rpm')" id="lr"><span class="lg-d" style="background:var(--cyan)"></span>RPM
+            </div>
+            <div class="lg" onclick="tS('curr')" id="lc"><span class="lg-d" style="background:var(--green)"></span>A
+            </div>
+          </div>
+        </div>
+        <canvas id="chart" height="140"></canvas>
+      </div>
+      <div class="ct-sec">
+        <div class="ct-title">Command</div>
+        <div class="ct-row">
+          <input type="number" class="ct-in" id="fIn" value="30" min="0" max="60" step="0.1">
+          <span class="ct-hz">Hz</span>
+        </div>
+        <input type="range" class="ct-sl" id="fSl" min="0" max="60" step="0.5" value="30">
+        <div class="ct-slab"><span>0</span><span>15</span><span>30</span><span>45</span><span>60</span></div>
+        <div class="ct-btns">
+          <button class="ct-b se" onclick="pF()">Set Freq</button>
+          <button class="ct-b ru" onclick="pC('RUN')">▶ Run</button>
+          <button class="ct-b st" onclick="pC('STOP')">■ Stop</button>
+        </div>
+      </div>
+      <div class="lo-sec">
+        <div class="lo-top">
+          <div class="lo-title">Log</div><button class="lo-clr" onclick="cL()">Clear</button>
+        </div>
+        <div class="lo-box" id="lB"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cfg = { host: '', port: 8084, path: '/mqtt', sub: '', pub: '', cid: '' }, cl = null, on = false;
+    const MX = 50; let D = { freq: [], volt: [], rpm: [], curr: [], t: [] }, vis = { freq: 1, volt: 1, rpm: 1, curr: 1 }, mc = 0;
+
+    // Setup
+    function resetSetup() { document.getElementById('cHost').value = 'broker.emqx.io'; document.getElementById('cPort').value = '8084'; document.getElementById('cPath').value = '/mqtt'; document.getElementById('cSub').value = 'delta/vfd'; document.getElementById('cPub').value = 'delta/vfd/set'; document.getElementById('cId').value = ''; }
+
+    function launch() {
+      cfg.host = document.getElementById('cHost').value.trim();
+      cfg.port = parseInt(document.getElementById('cPort').value) || 8084;
+      cfg.path = document.getElementById('cPath').value.trim() || '/mqtt';
+      cfg.sub = document.getElementById('cSub').value.trim();
+      cfg.pub = document.getElementById('cPub').value.trim();
+      cfg.cid = document.getElementById('cId').value.trim() || 'vfd_' + Math.random().toString(16).substr(2, 6);
+      if (!cfg.host || !cfg.sub || !cfg.pub) { toast('Fill in all fields', 'fail'); return; }
+      document.getElementById('pgSetup').classList.remove('active');
+      document.getElementById('pgDash').classList.add('active');
+      D = { freq: [], volt: [], rpm: [], curr: [], t: [] }; mc = 0; dC(); conn();
+    }
+
+    function goSetup() { if (cl) { cl.end(); cl = null; on = false; } document.getElementById('pgDash').classList.remove('active'); document.getElementById('pgSetup').classList.add('active'); }
+
+    // Slider sync
+    const fIn = document.getElementById('fIn'), fSl = document.getElementById('fSl');
+    fIn.addEventListener('input', () => { fSl.value = Math.min(60, Math.max(0, parseFloat(fIn.value) || 0)); });
+    fSl.addEventListener('input', () => { fIn.value = parseFloat(fSl.value).toFixed(1); });
+
+    // MQTT
+    function togConn() { on ? disc() : conn(); }
+
+    function conn() {
+      if (typeof mqtt === 'undefined') { aL('err', 'MQTT library failed to load. Check your internet connection and reload.'); toast('MQTT lib not loaded', 'fail'); return; }
+      const url = `wss://${cfg.host}:${cfg.port}${cfg.path}`;
+      aL('sys', `Connecting → ${cfg.host}…`);
+      try {
+        cl = mqtt.connect(url, { clientId: cfg.cid, clean: true, connectTimeout: 5000, reconnectPeriod: 3000 });
+        cl.on('connect', () => {
+          on = true; uC(1); aL('sys', 'Connected ✓'); toast('Connected', 'ok');
+          cl.subscribe(cfg.sub, { qos: 0 }, e => { e ? aL('err', 'Sub failed') : aL('sub', 'Subscribed → ' + cfg.sub); });
+        });
+        cl.on('message', (t, m) => { const r = m.toString(); try { hD(JSON.parse(r)); aL('sub', '← ' + r); } catch { aL('err', 'Parse: ' + r); } });
+        cl.on('error', e => aL('err', e.message));
+        cl.on('close', () => { on = false; uC(0); aL('sys', 'Disconnected'); });
+        cl.on('reconnect', () => aL('sys', 'Reconnecting…'));
+      } catch (e) { aL('err', e.message); toast('Failed', 'fail'); }
+    }
+
+    function disc() { if (cl) { cl.end(); cl = null; on = false; uC(0); } }
+    function uC(v) { document.getElementById('nDot').className = 'n-dot' + (v ? ' on' : ''); document.getElementById('nConn').textContent = v ? 'Online' : 'Offline'; }
+
+    // Data
+    function hD(d) {
+      mc++; const now = new Date();
+      const f = parseFloat(d.f) || 0, v = parseFloat(d.v) || 0, r = parseFloat(d.r) || 0, a = parseFloat(d.a) || 0;
+      const run = (d.s === 1 || d.s === '1' || String(d.s).toUpperCase() === 'RUN');
+      sV('dF', f.toFixed(1)); sV('dV', v.toFixed(0)); sV('dR', r.toFixed(0)); sV('dA', a.toFixed(2));
+      const b = document.getElementById('stB'), ri = document.getElementById('stR'), sv = document.getElementById('stV'), st = document.getElementById('stTs');
+      b.className = 'st-banner ' + (run ? 'run' : 'stop'); ri.textContent = run ? '▶' : '■'; sv.textContent = run ? 'RUNNING' : 'STOPPED';
+      st.textContent = '#' + mc + ' · ' + now.toLocaleTimeString();
+      const tl = now.toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      D.freq.push(f); D.volt.push(v); D.rpm.push(r); D.curr.push(a); D.t.push(tl);
+      if (D.t.length > MX) { D.freq.shift(); D.volt.shift(); D.rpm.shift(); D.curr.shift(); D.t.shift(); }
+      dC();
+    }
+
+    function sV(id, v) { const e = document.getElementById(id); e.textContent = v; e.classList.remove('vf'); void e.offsetWidth; e.classList.add('vf'); }
+
+    // Publish
+    function pF() { const f = parseFloat(fIn.value); if (isNaN(f) || f < 0 || f > 60) { toast('0–60 Hz', 'fail'); return; } pub(JSON.stringify({ cmd: 'freq', value: f })); }
+    function pC(c) { pub(JSON.stringify({ cmd: c.toLowerCase(), value: c === 'RUN' ? 1 : 0 })); }
+    function pub(p) { if (!on || !cl) { toast('Not connected', 'fail'); return; } cl.publish(cfg.pub, p, { qos: 0 }, e => { e ? aL('err', 'Pub failed') : (aL('pub', '→ ' + p), toast('Sent', 'ok')); }); }
+
+    // Chart
+    function dC() {
+      const cv = document.getElementById('chart'); if (!cv) return;
+      const cx = cv.getContext('2d'), dp = window.devicePixelRatio || 1;
+      cv.width = cv.offsetWidth * dp; cv.height = 140 * dp; cx.scale(dp, dp);
+      const W = cv.offsetWidth, H = 140, p = { t: 6, r: 6, b: 18, l: 36 }, pW = W - p.l - p.r, pH = H - p.t - p.b;
+      cx.clearRect(0, 0, W, H);
+      const al = []; if (vis.freq) al.push(...D.freq); if (vis.volt) al.push(...D.volt); if (vis.rpm) al.push(...D.rpm); if (vis.curr) al.push(...D.curr);
+      if (!al.length) { cx.fillStyle = '#A0A09A'; cx.font = '11px DM Mono'; cx.textAlign = 'center'; cx.fillText('Waiting for data…', W / 2, H / 2); return; }
+      let lo = Math.min(...al), hi = Math.max(...al); if (lo === hi) { lo -= 1; hi += 1; } const rn = hi - lo; lo -= rn * .1; hi += rn * .1;
+      const n = D.t.length, xp = i => p.l + (i / Math.max(n - 1, 1)) * pW, yp = v => p.t + pH - ((v - lo) / (hi - lo)) * pH;
+      cx.strokeStyle = '#E8E8E4'; cx.lineWidth = .5;
+      for (let i = 0; i <= 4; i++) { const gy = p.t + (pH / 4) * i; cx.beginPath(); cx.moveTo(p.l, gy); cx.lineTo(W - p.r, gy); cx.stroke(); cx.fillStyle = '#A0A09A'; cx.font = '8px DM Mono'; cx.textAlign = 'right'; cx.fillText((hi - (i / 4) * (hi - lo)).toFixed(0), p.l - 4, gy + 3); }
+      cx.fillStyle = '#A0A09A'; cx.font = '7.5px DM Mono'; cx.textAlign = 'center'; const st = Math.max(1, Math.floor(n / 5)); for (let i = 0; i < n; i += st)cx.fillText(D.t[i], xp(i), H - 2);
+      const co = { freq: '#2563EB', volt: '#D97706', rpm: '#0891B2', curr: '#16A34A' };
+      for (const k of ['freq', 'volt', 'rpm', 'curr']) {
+        if (!vis[k] || D[k].length < 2) continue; const dd = D[k];
+        cx.beginPath(); cx.moveTo(xp(0), yp(dd[0])); for (let i = 1; i < dd.length; i++)cx.lineTo(xp(i), yp(dd[i]));
+        cx.strokeStyle = co[k]; cx.lineWidth = 1.5; cx.lineJoin = 'round'; cx.stroke();
+        const la = dd.length - 1; cx.beginPath(); cx.arc(xp(la), yp(dd[la]), 2.5, 0, Math.PI * 2); cx.fillStyle = co[k]; cx.fill();
+      }
+    }
+
+    function tS(k) { vis[k] = vis[k] ? 0 : 1; document.getElementById({ freq: 'lf', volt: 'lv', rpm: 'lr', curr: 'lc' }[k]).classList.toggle('off'); dC(); }
+
+    // Log
+    function aL(t, m) { const b = document.getElementById('lB'), ti = new Date().toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }), e = document.createElement('div'); e.className = 'le'; e.innerHTML = `<span class="le-t">${ti}</span><span class="le-m ${t}">${esc(m)}</span>`; b.appendChild(e); b.scrollTop = b.scrollHeight; while (b.children.length > 60) b.removeChild(b.firstChild); }
+    function cL() { document.getElementById('lB').innerHTML = ''; }
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    // Toast
+    function toast(m, t) { const e = document.getElementById('toast'); e.textContent = m; e.className = 'toast ' + t + ' show'; setTimeout(() => e.classList.remove('show'), 1800); }
+
+    window.addEventListener('resize', () => { if (D.t.length) dC(); });
+  </script>
+</body>
+
+</html>
