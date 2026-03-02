@@ -1048,8 +1048,8 @@
     function sV(id, v) { const e = document.getElementById(id); e.textContent = v; e.classList.remove('vf'); void e.offsetWidth; e.classList.add('vf'); }
 
     // Publish
-    function pF() { const f = parseFloat(fIn.value); if (isNaN(f) || f < 0 || f > 60) { toast('0–60 Hz', 'fail'); return; } pub(JSON.stringify({ cmd: 'freq', value: f })); }
-    function pC(c) { pub(JSON.stringify({ cmd: c.toLowerCase(), value: c === 'RUN' ? 1 : 0 })); }
+    function pF() { const f = parseFloat(fIn.value); if (isNaN(f) || f < 0 || f > 60) { toast('0–60 Hz', 'fail'); return; } pub(`F:${f}`); }
+    function pC(c) { pub(`S:${c}`); }
     function pub(p) { if (!on || !cl) { toast('Not connected', 'fail'); return; } cl.publish(cfg.pub, p, { qos: 0 }, e => { e ? aL('err', 'Pub failed') : (aL('pub', '→ ' + p), toast('Sent', 'ok')); }); }
 
     // Chart
